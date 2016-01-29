@@ -1,23 +1,26 @@
-getWebPageDataJournal <- function(webPage,nArticles){
+getWebPageDataJournal <- function(journal,nArticles){
   #function that will get abstracts from a journal.
   #Set the timeout nice and long because sometimes they take a LONG time
-  defaultOptions<- curlOptions(timeout = 300)
-  options(RCurlOptions = defaultOptions)
+  defaultOptions<- curlOptions(timeout = 60,httpauth = 1L) #need to name the useragent for certain websites
+  #See http://www.omegahat.org/RCurl/FAQ.html
+  options(RCurlOptions = defaultOptions) 
   
-  nextWebPage<-paste(webPage@base,webPage@extension,sep="")
+  nextWebPage<-paste(journal@base,journal@extension,sep="")
   papers=NULL
   for(i in 1:nArticles){
     print(paste("Accessing URL",i))
-    b<-getURL(nextWebPage) #Use this because it allows for a longer timeout by directly using RCurl 
+    b<-getURL(nextWebPage,ssl.verifypeer = FALSE, useragent = "R") #Use this because it allows for a longer timeout by directly using RCurl 
+    #Need the useragent and ssl.verifypeer for certain websites it seems
     hrefLinks<- read_html(b)%>>% html_nodes("a") %>>% html_attr("href")
     nextIssue<-read_html(b)%>>% html_nodes("a")
-    nextIssueURL<-nextIssue[grep('Next issue',nextIssue)]%>>%html_attr("href")
+    nextIssueURL<-getNextIssue(journal,nextIssue)
     
     #We get the lines that have the abstract html links
-    abstractLinks <- hrefLinks[grep('*abstract*',hrefLinks)]
+    abstractLinks <- hrefLinks[grep(journal@abstract,hrefLinks)]
+    #abstractLinks <- hrefLinks[grep('*/aa/abs/*html$',hrefLinks)]
     #We create the addressable html links
-    papers <-c(papers,paste(webPage@base,abstractLinks,sep=""))
-    nextWebPage<-paste(webPage@base,nextIssueURL,sep="")
+    papers <-c(papers,paste(journal@base,abstractLinks,sep=""))
+    nextWebPage<-paste(journal@base,nextIssueURL,sep="")
     if(length(nextIssueURL)==0){
       print('Reached end of Journal')
       break
@@ -25,6 +28,12 @@ getWebPageDataJournal <- function(webPage,nArticles){
   }
   #and we read in the papers, extracting the parts of relevance (i.e. 'meta' labelled)
   return(papers)
+}
+
+getNextIssue<-function(journal,htmlPage){
+  #function to extract the next issue
+  nextIssueURL<-htmlPage[grep(journal@nextIssue,htmlPage)]%>>%html_attr("href")
+  return(nextIssueURL)
 }
 
 getData<-function(journal,searchString,htmlPage){
@@ -118,11 +127,28 @@ parseAbstracts <-function(journal,abstracts,nAbstracts){
       #Number of citations?
       #Author Email xx
       #URL to abstract xx
+      #URL to Journal Issue??
   }
      
     return(output)
 }
 
-
-
+edges <-function(data,field){
+  ddEdges <- data.frame(V1= character(0), V2= character(0))
+  doi<-(unique(data$doi)) #use the doi to get the unique papers
+  for(i in 1:length(unique(doi))){ 
+    a<-split(data,data$doi==doi[i])$'TRUE'
+    
+      fieldPaste<-paste('a$',field,sep="") #construct variable to use
+      vector<-unique(eval(parse(text = fieldPaste)))
+    if(length(vector)>1){  
+      b<-combs(1:length(vector),2) #get the author links using n choose r
+      gg<-vector[b]
+      Edges<-as.data.frame(matrix(gg,ncol=2))
+      colnames(Edges)<-colnames(ddEdges)
+      ddEdges<-rbind(ddEdges,Edges)
+    }
+  }
+  return(ddEdges)
+}
 
