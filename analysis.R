@@ -14,10 +14,26 @@ library('caTools')
 library(igraph)
 library('stringdist')
 library('rgl')
+require(doParallel)
+require(foreach)
+require(networkD3)
+install.packages("networkD3")
+install.packages("extrafont")
+
+library(extrafont)
+font_import()
 
 #open up the user specific functions defined in functions.R- this has definitions of the web page format etc.
 source('./functions.R')
 
+
+
+nCores<-detectCores()
+cl<-makeCluster(nCores)
+registerDoParallel(cl)
+getDoParWorkers()
+mcoptions <- list(preschedule=FALSE, set.seed=FALSE)
+getDoParName()
 
 #First we ppopulate the websites for the different journals
 #----------------------------------------------------------------------
@@ -48,7 +64,7 @@ astast <- new("Journal", base = "http://www.aanda.org/", extension = 'articles/a
 
 #header to define the ApJ
 astApj <- new("Journal", base = "http://iopscience.iop.org/", extension = '0004-637X/809/1', nextIssue = 'next issue', 
-              abstract = '/aa/abs/.*aa.*\\.html$', metaNodes= 'meta', metaNames = 'name', metaContent = 'content',authorSearch = "^citation_author$",
+              abstract = '/article/.*meta', metaNodes= 'meta', metaNames = 'name', metaContent = 'content',authorSearch = "^citation_author$",
               institutionSearch = "^citation_author_institution$", doiSearch="^citation_doi$",dateSearch="^citation_publication_date$",
               emailSearch = "^citation_author_email$")
 
@@ -74,46 +90,39 @@ ddEdges <- data.frame(V1= character(0), V2= character(0))
 ddEdges<-edges(mnrasData,"author")
 
 
-
-
-a<-sort(unique(mnrasData1$affiliation1))
-lenA<-length(a)
-
-i<-1
-while(i < lenA){
-  #print(a[i])
-  dist.name<-adist(a[i],mnrasData1$affiliation1, partial = TRUE, ignore.case = TRUE)
-  
-  average<-mean(na.omit(t(dist.name)))
-  stddev<-sd(na.omit(t(dist.name)))
-  bbb<-which(dist.name<(average-5*stddev))
-  #print(mnrasData1$affiliation1[bbb])
-  mnrasData1$affiliation1[bbb]<-a[i] #set all the values to the first affiliation
-  dist.name2<-adist(a[i],a, partial = TRUE, ignore.case = TRUE)
-  average2<-mean(na.omit(t(dist.name2)))
-  stddev2<-sd(na.omit(t(dist.name2)))
-  ccc<-which(dist.name2<(average2-5*stddev2))
-  if(length(ccc)>1){
-    indexC<-ccc[2:length(ccc)]
-    #print(a[indexC])
-    a<-a[-indexC] #remove the names from the list that are similar
-  }
-  lenA<-length(a)
-  i<-i+1
-  print(lenA)
-  print(i)
+nAffiliations<-length(unique((mnrasData2$affiliation1)))
+affiliationsSorted<- sort(unique(mnrasData2$affiliation1))
+a=NULL
+for(i in 1:length(affiliationsSorted)){
+  dist.name<-adist(affiliationsSorted[i],affiliationsSorted, partial = TRUE, ignore.case = TRUE)
+  a=rbind(a,dist.name)
 }
+
+#sort the affiliations nicely so it combines affiliations that are close in name
+mnrasData2<-sortAffiliations(mnrasData2)
+
+x = data.frame(num = 1:26, let = letters, LET = LETTERS)
+set.seed(10)
+tt<-split(x, sample(rep(1:2, 13)))
 
   ddEdges<-edges(mnrasData1,"affiliation1")
   affiliations<-mnrasData1$affiliation1[V(g)]
 
   g <- graph.data.frame(ddEdges, directed=FALSE)
+  a<-as.numeric(degree(g))
+  which(a<2)
+  
   V(g)$label <- V(g)$name
   opar <- par()$mar; par(mar=rep(0, 4)) #Give the graph lots of room
   set.seed(3952)
   plot.igraph(g, layout=layout.fruchterman.reingold(g),vertex.label=NA,vertex.size=1)
   layout <- layout.reingold.tilford(g, circular=T)
+  net <- simplify(g2, remove.multiple = F, remove.loops = T)
   plot.igraph(g, vertex.label=NA,vertex.size=1,layout=layout)
-  plot.igraph(g, vertex.label=NA,vertex.size=1)
+  plot.igraph(net, vertex.label=NA,vertex.size=1)
+  d3g2<-as.data.frame(get.edgelist(g2))
+  simpleNetwork(Data = d3g2,  height = 1000, width = 1000,  charge = -50)
+  
+  
   par(mar=opar)
   
