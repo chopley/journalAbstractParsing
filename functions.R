@@ -1,3 +1,35 @@
+sortAffiliations <-function(data){
+  a<-sort(unique(data$affiliation1))
+  lenA<-length(a)
+  
+  i<-1
+  while(i < lenA){
+    #print(a[i])
+    dist.name<-adist(a[i],data$affiliation1, partial = TRUE, ignore.case = TRUE)
+    average<-mean(na.omit(t(dist.name)))
+    stddev<-sd(na.omit(t(dist.name)))
+    bbb<-which(dist.name<(average-5*stddev))
+    #print(mnrasData1$affiliation1[bbb])
+    data$affiliation1[bbb]<-a[i] #set all the values to the first affiliation
+    dist.name2<-adist(a[i],a, partial = TRUE, ignore.case = TRUE)
+    average2<-mean(na.omit(t(dist.name2)))
+    stddev2<-sd(na.omit(t(dist.name2)))
+    ccc<-which(dist.name2<(average2-5*stddev2))
+    if(length(ccc)>1){
+      indexC<-ccc[2:length(ccc)]
+      #print(a[indexC])
+      a<-a[-indexC] #remove the names from the list that are similar
+    }
+    lenA<-length(a)
+    i<-i+1
+    print(lenA)
+    print(i)
+  }
+  return(data)
+}
+
+
+
 getWebPageDataJournal <- function(journal,nArticles){
   #function that will get abstracts from a journal.
   #Set the timeout nice and long because sometimes they take a LONG time
@@ -9,7 +41,7 @@ getWebPageDataJournal <- function(journal,nArticles){
   papers=NULL
   for(i in 1:nArticles){
     print(paste("Accessing URL",i))
-    b<-getURL(nextWebPage,ssl.verifypeer = FALSE, useragent = "R") #Use this because it allows for a longer timeout by directly using RCurl 
+    b<-getURL(nextWebPage,ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE)) #Use this because it allows for a longer timeout by directly using RCurl 
     #Need the useragent and ssl.verifypeer for certain websites it seems
     hrefLinks<- read_html(b)%>>% html_nodes("a") %>>% html_attr("href")
     nextIssue<-read_html(b)%>>% html_nodes("a")
