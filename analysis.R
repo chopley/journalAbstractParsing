@@ -112,7 +112,7 @@ mnrasData<- parseAbstracts(mnras,abstractLinksmnras[1:1270],length(abstractLinks
 
 aaData<- parseAbstracts(astast,abstractLinksaa,380)
 apjData<- parseAbstracts(astApj,abstractLinksapj,3)
-apjData<- parseAbstracts2(astApj,abstractLinksapj,3)
+apjData<- parseAbstracts2(astApj,abstractLinksapj,6)
 
 #glob2rx("/aa/abs/*aa*.html")
 ddEdges <- data.frame(V1= character(0), V2= character(0))

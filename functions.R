@@ -89,10 +89,8 @@ getData2<-function(journal,searchString,htmlPage,metaNodes,metaNames,metaContent
   }
   #" itemprop=\"name\">E. Churazov</"
   author2 <- sub(".*?\"name\">(.*?)</.*", "\\1", as.character(author))
-  print(author2)
   #tempAffiliationIndex ">\n  <sup>1</sup>\n</" We need to extract the value so we use sub as below
   authorAffiliationIndex2 <- sub(".*?<sup>(.*?)</sup>.*", "\\1", as.character(authorAffiliationIndex))
-  print(authorAffiliationIndex2)
   content2<-html_nodes(webPage,'.wd-jnl-art-author-affiliations') #get the author affiliations (use the selector tool)
   affiliationIndices<-html_children(content2) 
   index<-grep('.*sup>.*</sup>.*',affiliationIndices)
@@ -100,7 +98,34 @@ getData2<-function(journal,searchString,htmlPage,metaNodes,metaNames,metaContent
   for(i in 1:length(author)){
     authorAffiliation<-rbind(authorAffiliation,(values[[as.numeric(authorAffiliationIndex2[i])]][2]))
   }
-  return(cbind(author2,authorAffiliation))
+  
+  nodesDOI<-html_nodes(webPage,'.wd-jnl-art-doi')
+  DOI<-html_text(nodesDOI)
+  DOI <- sub(".*http:(.*?)\n.*", "\\1", as.character(DOI))
+  DOI <-paste("http:",DOI,sep="")
+  
+  
+  nodesEmail<-html_nodes(webPage,'.mb-0')
+  emailIndex<-grep('.*mailto:.*',nodesEmail)
+  email <- sub(".*?mailto:(.*?)\" title.*", "\\1", as.character(nodesEmail[emailIndex]))
+  
+  
+  nodesDates<-html_nodes(webPage,'.wd-jnl-art-dates')
+  dates<-html_text(nodesDates)
+  dates<- sub(".*Accepted (.*?)\n.*", "\\1", as.character(dates))
+  
+  
+  data<-cbind(author2,authorAffiliation)
+  dates<-rep(dates[1],nrow(data))
+  email<-rep(email[1],nrow(data))
+  DOI<-rep(DOI,nrow(data))
+  data<-cbind(data,DOI,email,dates)
+  #output <- data.frame(author= character(0), affiliation1= character(0),affiliation2= character(0),affiliation3=character(0),
+  #                     affiliation4=character(0),affiliation5=character(0),doi=character(0),authorEmail=character(0),
+  #                     abstractURL=character(0),date=character(0),webpage=character(0))
+  colnames(data)<-c("author","affiliation1","doi","authorEmail","date")
+  
+  return(data)
 }
 
 
@@ -225,20 +250,12 @@ parseAbstracts2 <-function(journal,abstracts,nAbstracts){
                      abstractURL=character(0),date=character(0),webpage=character(0))
     b<-getURL(abstracts[i],ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE)) 
     authorsAffiliations<-getData2(journal,journal@authorSearch,b,
-                     journal@metaNodes,journal@metaNames,journal@metaContent) #get the authors
-    colnames(authorsAffiliations)<-c('Author','Affiliation1')
+                 journal@metaNodes,journal@metaNames,journal@metaContent) #get the authors
+    #colnames(authorsAffiliations)<-c('Author','Affiliation1')
 
-    email<-getData(journal,journal@emailSearch,b,
-                   journal@metaNodes,journal@metaNames,journal@metaContent) #get the icorresponding email
-    doi<-getData(journal,journal@doiSearch,b,
-                 journal@metaNodes,journal@metaNames,journal@metaContent) #get the doi
-    date<-getData(journal,journal@dateSearch,b,
-                  journal@metaNodes,journal@metaNames,journal@metaContent) #get the date
-    dd<-authorsAffiliations
+   
+    dd<-as.data.frame(authorsAffiliations)
     try({
-      dd$doi <- rep(doi$values,nrow(dd)) 
-      dd$email<- rep(email$values,nrow(dd))
-      dd$date<- rep(date$values,nrow(dd))
       dd$abstractURL <-rep(abstracts[i],nrow(dd))
       dd$webpage<-rep(journal@base,nrow(dd))
       output<-rbind(output,dd)
