@@ -1,6 +1,9 @@
-#This script is used to read the data from the autotrader website in a specified format.
-#The data are then written to text file for further analysis by the learn.R function
-#CJC Rev A 2015/06/20
+#This script is used to read the data from differen academic journals
+# the format is defined in the journal class
+#CJC Rev A 2016/02/01
+
+install.packages("networkD3")
+install.packages("extrafont")
 
 require(rvest)
 require(ggplot2)
@@ -17,8 +20,7 @@ library('rgl')
 require(doParallel)
 require(foreach)
 require(networkD3)
-install.packages("networkD3")
-install.packages("extrafont")
+
 
 library(extrafont)
 font_import()
@@ -40,20 +42,36 @@ getDoParName()
 
 
 setClass("Journal",
-         slots = list(base = "character", extension= "character",nextIssue = "character", abstract="character", metaNodes= "character", 
-                      metaNames = "character", metaContent = "character",authorSearch = "character",
-                      institutionSearch = "character",doiSearch = "character",dateSearch = "character",
-                      emailSearch = "character"))
+         slots = list(base = "character", extension= "character",nextIssue = "character", abstract="character", 
+                      metaNodes= "character", metaNames = "character", metaContent = "character", 
+                      authorNodes= "character",  authorSplit = "character", authorExtractString = "character",authorAffiliationIndex = "character",
+                      affiliationNodes = "character", affiliationSplit = "character", affiliationExtractString = "character", 
+                      authorSearch = "character", institutionSearch = "character",doiSearch = "character",dateSearch = "character",
+                      emailSearch = "character",websiteLayout = "character"))
+#decsription of Journal Layout
+#base - The base URL of the website
+#extension - the extension that is added to the base to get the URL of each of the journal volume abstract list
+#metaNodes - This is a node in the XML that is used for all the author names, affiliations etc. Only used for MNRAS, A&A in getData
+#metaNames - This is an attribute of the nodes that extracts the labels of each XML data field. Only used for MNRAS, A&A in getData
+#metaContent - This is an attribute of the nodes that extracts the content in each XML data field. Only used for MNRAS, A&A in getData
+#authorNodes
+#authorSplit
+#authorExtractString
+#affiliationNodes
+#affiliationSplit
+#affiliationExtractString
+#authorSearch
+#instiutionSearch
+#doiSearch
+#dateSearch
+#emailSearch
+#websiteLayout
 
-mnras <- new("Journal", base = "http://mnras.oxfordjournals.org/", extension = 'content/440/1.toc', 
-             metaNodes= 'meta', metaNames = 'name', metaContent = 'content',authorSearch = "^citation_author$",
-             institutionSearch = "^citation_author_institution$", doiSearch="^citation_doi$",dateSearch="^citation_date$",
-             emailSearch = "^citation_author_email$")
 
 #header to define the mnras layout
 mnras <- new("Journal", base = "http://mnras.oxfordjournals.org/", extension = 'content/313/1.toc', nextIssue = 'Next issue', abstract = '*abstract*',
-             metaNodes= 'meta', metaNames = 'name', metaContent = 'content',authorSearch = "^citation_author$",
-             institutionSearch = "^citation_author_institution$", doiSearch="^citation_doi$",dateSearch="^citation_date$",
+             metaNodes= 'meta', metaNames = 'name', metaContent = 'content',
+             authorSearch = "^citation_author$",institutionSearch = "^citation_author_institution$", doiSearch="^citation_doi$",dateSearch="^citation_date$",
              emailSearch = "^citation_author_email$")
 
 #header to define the Astronomy and Astrophysics layout
@@ -63,27 +81,39 @@ astast <- new("Journal", base = "http://www.aanda.org/", extension = 'articles/a
              emailSearch = "^citation_author_email$")
 
 #header to define the ApJ
-astApj <- new("Journal", base = "http://iopscience.iop.org/", extension = '0004-637X/809/1', nextIssue = 'next issue', 
-              abstract = '/article/.*meta', metaNodes= 'meta', metaNames = 'name', metaContent = 'content',authorSearch = "^citation_author$",
-              institutionSearch = "^citation_author_institution$", doiSearch="^citation_doi$",dateSearch="^citation_publication_date$",
-              emailSearch = "^citation_author_email$")
+astApj <- new("Journal", base = "http://iopscience.iop.org/", extension = '0004-637X/471/1', nextIssue = 'next issue', 
+              abstract = '/article/.*meta', metaNodes= 'meta', metaNames = 'name', metaContent = 'content',
+              authorNodes= ".mb-0, span", authorSplit = "span", authorExtractString = '.*?\"name\">(.*?)</.*', authorAffiliationIndex = '.*?<sup>(.*?)</sup>.*',
+              affiliationNodes = ".wd-jnl-art-author-affiliations",affiliationSplit = "</sup>", affiliationExtractString = ".*sup>.*</sup>.*", 
+              institutionSearch = "^citation_author_institution$", doiSearch="^citation_doi$",
+              dateSearch="^citation_publication_date$", emailSearch = "^citation_author_email$", websiteLayout = "character")
 
+authorSearch = 'itemtype="http://schema.org/Person" itemprop="author" class="nowrap">\n  <span itemprop="name">',
 #get base by looking at the page info
 
 # MNRAS 300 is ~1998
 # MNRAS 325 11 August 2001
 # MNRAS 400 is ~2004
 
-abstractLinksmnras <- getWebPageDataJournal(mnras,200)
-abstractLinksaa <- getWebPageDataJournal(astast,2)
+abstractLinksmnras <- getWebPageDataJournal(mnras,2)
+abstractLinksaa <- getWebPageDataJournal(astast,200)
 abstractLinksapj <- getWebPageDataJournal(astApj,2)
 
 
-mnrasData2<- parseAbstracts(mnras,abstractLinksmnras[1:6125],length(abstractLinksmnras[1:6125]))
+journal<-astApj
+b<-getURL(abstractLinksapj[2],ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE))
+source('./functions.R')
+
+authors<-getData2(journal,journal@authorSearch,b,
+                  journal@metaNodes,journal@metaNames,journal@metaContent) #get the authors
+
+mnrasData2<- parseAbstracts(mnras,abstractLinksmnras,5)
 mnrasData<- parseAbstracts(mnras,abstractLinksmnras[1:1270],length(abstractLinksmnras[1:1270]))
 
 aaData<- parseAbstracts(astast,abstractLinksaa,380)
-apjData<- parseAbstracts(astApj,abstractLinksapj,5)
+apjData<- parseAbstracts(astApj,abstractLinksapj,3)
+apjData<- parseAbstracts2(astApj,abstractLinksapj,3)
+
 #glob2rx("/aa/abs/*aa*.html")
 ddEdges <- data.frame(V1= character(0), V2= character(0))
 

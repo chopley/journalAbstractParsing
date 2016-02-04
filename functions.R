@@ -68,11 +68,51 @@ getNextIssue<-function(journal,htmlPage){
   return(nextIssueURL)
 }
 
-getData<-function(journal,searchString,htmlPage){
+getData2<-function(journal,searchString,htmlPage,metaNodes,metaNames,metaContent){
+  #require slightly more flexible input to allow different metaNames depending on which register is used
   webPage<-read_html(htmlPage) #read html to xml
-  nodes<-html_nodes(webPage,journal@metaNodes) #find the nodes (e.g. xml dataframes) that have all the stuff we need as defined in the journal definition file
-  typeDef <- html_attr(nodes,journal@metaNames) #get the tags associated with each xml data frame
-  content<-html_attr(nodes,journal@metaContent)
+  nodes<-html_nodes(webPage,metaNodes) #find the nodes (e.g. xml dataframes) that have all the stuff we need as defined in the journal definition file
+  #nodes<-html_nodes(webPage,'div')
+  #typeDef <- html_attr(nodes,'class') for apJ
+  typeDef <- html_attr(nodes,metaNames) #get the tags associated with each xml data frame
+  authorContent<-html_nodes(webPage,journal@authorNodes)
+  authorIndex<-grep('itemtype="http://schema.org/Person" itemprop="author" class="nowrap">\n  <span itemprop="name">',authorContent)
+  authorContent2<-strsplit(as.character(authorContent[authorIndex]), 'span', fixed = FALSE, perl = FALSE, useBytes = FALSE)
+  author<-NULL
+  authorAffiliationIndex<-NULL
+  authorAffiliation<-NULL
+  for(i in 1:length(authorContent2)){
+    tempAuthor<-authorContent2[[i]][3] #get the author name
+    tempAffiliationIndex<-authorContent2[[i]][4] #get the affiliation index
+    authorAffiliationIndex<-rbind(authorAffiliationIndex,tempAffiliationIndex)
+    author<-rbind(author,tempAuthor)
+  }
+  #" itemprop=\"name\">E. Churazov</"
+  author2 <- sub(".*?\"name\">(.*?)</.*", "\\1", as.character(author))
+  print(author2)
+  #tempAffiliationIndex ">\n  <sup>1</sup>\n</" We need to extract the value so we use sub as below
+  authorAffiliationIndex2 <- sub(".*?<sup>(.*?)</sup>.*", "\\1", as.character(authorAffiliationIndex))
+  print(authorAffiliationIndex2)
+  content2<-html_nodes(webPage,'.wd-jnl-art-author-affiliations') #get the author affiliations (use the selector tool)
+  affiliationIndices<-html_children(content2) 
+  index<-grep('.*sup>.*</sup>.*',affiliationIndices)
+  values<-strsplit(as.character(affiliationIndices[index]),"</sup>", fixed = FALSE, perl = FALSE, useBytes = FALSE)
+  for(i in 1:length(author)){
+    authorAffiliation<-rbind(authorAffiliation,(values[[as.numeric(authorAffiliationIndex2[i])]][2]))
+  }
+  return(cbind(author2,authorAffiliation))
+}
+
+
+getData<-function(journal,searchString,htmlPage,metaNodes,metaNames,metaContent){
+  #getData routine for certain Journals
+  webPage<-read_html(htmlPage) #read html to xml
+  nodes<-html_nodes(webPage,metaNodes) #find the nodes (e.g. xml dataframes) that have all the stuff we need as defined in the journal definition file
+  #nodes<-html_nodes(webPage,'div')
+  #typeDef <- html_attr(nodes,'class') for apJ
+  typeDef <- html_attr(nodes,metaNames) #get the tags associated with each xml data frame
+  content<-html_attr(nodes,metaContent)
+  
   error<-0
   index<-grep(searchString,typeDef)
   values<-content[index]
@@ -137,13 +177,18 @@ parseAbstracts <-function(journal,abstracts,nAbstracts){
     dd <- data.frame(author= character(0), affiliation1= character(0),affiliation2= character(0),affiliation3=character(0),
                      affiliation4=character(0),affiliation5=character(0),doi=character(0),authorEmail=character(0),
                      abstractURL=character(0),date=character(0),webpage=character(0))
-      b<-getURL(abstracts[i]) 
-      authors<-getData(journal,journal@authorSearch,b) #get the authors
-      institutions<-getData(journal,journal@institutionSearch,b) #get the institutions
+      b<-getURL(abstracts[i],ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE)) 
+      authors<-getData(journal,journal@authorSearch,b,
+                       journal@metaNodes,journal@metaNames,journal@metaContent) #get the authors
+      institutions<-getData(journal,journal@institutionSearch,b,
+                            journal@metaNodes,journal@metaNames,journal@metaContent) #get the institutions
       institutions$values<-gsub('^[[:digit:]]+','',institutions$values) #remove any preceding digits from the institutions
-      email<-getData(journal,journal@emailSearch,b) #get the icorresponding email
-      doi<-getData(journal,journal@doiSearch,b) #get the doi
-      date<-getData(journal,journal@dateSearch,b) #get the date
+      email<-getData(journal,journal@emailSearch,b,
+                     journal@metaNodes,journal@metaNames,journal@metaContent) #get the icorresponding email
+      doi<-getData(journal,journal@doiSearch,b,
+                   journal@metaNodes,journal@metaNames,journal@metaContent) #get the doi
+      date<-getData(journal,journal@dateSearch,b,
+                    journal@metaNodes,journal@metaNames,journal@metaContent) #get the date
       dd<-matchAuthors(authors,institutions,dd)
       try({
       dd$doi <- rep(doi$values,nrow(dd)) 
@@ -163,6 +208,51 @@ parseAbstracts <-function(journal,abstracts,nAbstracts){
   }
      
     return(output)
+}
+
+parseAbstracts2 <-function(journal,abstracts,nAbstracts){
+  defaultOptions<- curlOptions(timeout = 300)
+  options(RCurlOptions = defaultOptions)
+  
+  output <- data.frame(author= character(0), affiliation1= character(0),affiliation2= character(0),affiliation3=character(0),
+                       affiliation4=character(0),affiliation5=character(0),doi=character(0),authorEmail=character(0),
+                       abstractURL=character(0),date=character(0),webpage=character(0))
+  for(i in 1:nAbstracts){
+    print(paste('Abstract ',i))
+    #create a clear dataframe for each abstract and append this to the eventual output
+    dd <- data.frame(author= character(0), affiliation1= character(0),affiliation2= character(0),affiliation3=character(0),
+                     affiliation4=character(0),affiliation5=character(0),doi=character(0),authorEmail=character(0),
+                     abstractURL=character(0),date=character(0),webpage=character(0))
+    b<-getURL(abstracts[i],ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE)) 
+    authorsAffiliations<-getData2(journal,journal@authorSearch,b,
+                     journal@metaNodes,journal@metaNames,journal@metaContent) #get the authors
+    colnames(authorsAffiliations)<-c('Author','Affiliation1')
+
+    email<-getData(journal,journal@emailSearch,b,
+                   journal@metaNodes,journal@metaNames,journal@metaContent) #get the icorresponding email
+    doi<-getData(journal,journal@doiSearch,b,
+                 journal@metaNodes,journal@metaNames,journal@metaContent) #get the doi
+    date<-getData(journal,journal@dateSearch,b,
+                  journal@metaNodes,journal@metaNames,journal@metaContent) #get the date
+    dd<-authorsAffiliations
+    try({
+      dd$doi <- rep(doi$values,nrow(dd)) 
+      dd$email<- rep(email$values,nrow(dd))
+      dd$date<- rep(date$values,nrow(dd))
+      dd$abstractURL <-rep(abstracts[i],nrow(dd))
+      dd$webpage<-rep(journal@base,nrow(dd))
+      output<-rbind(output,dd)
+    })
+    #Impact factor
+    #Date xx
+    #Journal Name xx
+    #Number of citations?
+    #Author Email xx
+    #URL to abstract xx
+    #URL to Journal Issue??
+  }
+  
+  return(output)
 }
 
 edges <-function(data,field){
