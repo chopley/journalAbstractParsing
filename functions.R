@@ -190,6 +190,10 @@ matchAuthors<-function(authors,institutions,df){
 
 
 parseAbstracts <-function(journal,abstracts,nAbstracts){
+  #The primary data parser. This will go through a list of abstract links and try to pull the data from them
+  #largely works with the following Journals
+  #1. MNRAS
+  #2. Astronomy and Astrophysics
   defaultOptions<- curlOptions(timeout = 300)
   options(RCurlOptions = defaultOptions)
 
@@ -237,6 +241,11 @@ parseAbstracts <-function(journal,abstracts,nAbstracts){
 }
 
 parseAbstracts2 <-function(journal,abstracts,nAbstracts){
+  #this is a slight variation on pageAbstract and is written to support the Astorphysics Journal data format.
+  #Still a work in progress.
+  #largely works with the following Journals
+  #1. Astrophysics Journal- Probably with other IOP publications?
+
   defaultOptions<- curlOptions(timeout = 300)
   options(RCurlOptions = defaultOptions)
   
@@ -249,7 +258,9 @@ parseAbstracts2 <-function(journal,abstracts,nAbstracts){
     dd <- data.frame(author= character(0), affiliation1= character(0),affiliation2= character(0),affiliation3=character(0),
                      affiliation4=character(0),affiliation5=character(0),doi=character(0),authorEmail=character(0),
                      abstractURL=character(0),date=character(0),webpage=character(0))
+    try({
     b<-getURL(abstracts[i],ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE)) 
+    })
     
     try({
       authorsAffiliations<-getData2(journal,journal@authorSearch,b,
