@@ -223,6 +223,7 @@ parseAbstracts <-function(journal,abstracts,nAbstracts){
       dd$webpage<-rep(journal@base,nrow(dd))
       output<-rbind(output,dd)
       })
+      save(output,file='data.R')
       #Impact factor
       #Date xx
       #Journal Name xx
@@ -249,17 +250,22 @@ parseAbstracts2 <-function(journal,abstracts,nAbstracts){
                      affiliation4=character(0),affiliation5=character(0),doi=character(0),authorEmail=character(0),
                      abstractURL=character(0),date=character(0),webpage=character(0))
     b<-getURL(abstracts[i],ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE)) 
-    authorsAffiliations<-getData2(journal,journal@authorSearch,b,
-                 journal@metaNodes,journal@metaNames,journal@metaContent) #get the authors
+    
+    try({
+      authorsAffiliations<-getData2(journal,journal@authorSearch,b,
+                 journal@metaNodes,journal@metaNames,journal@metaContent)
+      dd<-as.data.frame(authorsAffiliations)
+      })#get the authors
     #colnames(authorsAffiliations)<-c('Author','Affiliation1')
 
    
-    dd<-as.data.frame(authorsAffiliations)
+    
     try({
       dd$abstractURL <-rep(abstracts[i],nrow(dd))
       dd$webpage<-rep(journal@base,nrow(dd))
       output<-rbind(output,dd)
     })
+    save(output,file='data2.R')
     #Impact factor
     #Date xx
     #Journal Name xx
