@@ -97,7 +97,7 @@ authorSearch = 'itemtype="http://schema.org/Person" itemprop="author" class="now
 
 abstractLinksmnras <- getWebPageDataJournal(mnras,2)
 abstractLinksaa <- getWebPageDataJournal(astast,200)
-abstractLinksapj <- getWebPageDataJournal(astApj,2)
+abstractLinksapj <- getWebPageDataJournal(astApj,200)
 
 
 journal<-astApj
