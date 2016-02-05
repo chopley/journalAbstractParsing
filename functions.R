@@ -276,7 +276,7 @@ parseAbstracts2 <-function(journal,abstracts,nAbstracts){
       dd$webpage<-rep(journal@base,nrow(dd))
       output<-rbind(output,dd)
     })
-    save(output,file='data2.R')
+    try({save(output,file='data2.R')})
     #Impact factor
     #Date xx
     #Journal Name xx
