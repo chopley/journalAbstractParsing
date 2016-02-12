@@ -21,7 +21,7 @@ require(doParallel)
 require(foreach)
 require(networkD3)
 
-
+library(magrittr)
 library(extrafont)
 font_import()
 
@@ -88,24 +88,21 @@ astApj <- new("Journal", base = "http://iopscience.iop.org/", extension = '0004-
               institutionSearch = "^citation_author_institution$", doiSearch="^citation_doi$",
               dateSearch="^citation_publication_date$", emailSearch = "^citation_author_email$", websiteLayout = "character")
 
-authorSearch = 'itemtype="http://schema.org/Person" itemprop="author" class="nowrap">\n  <span itemprop="name">',
+
 #get base by looking at the page info
 
 # MNRAS 300 is ~1998
 # MNRAS 325 11 August 2001
 # MNRAS 400 is ~2004
 
-abstractLinksmnras <- getWebPageDataJournal(mnras,2)
-abstractLinksaa <- getWebPageDataJournal(astast,200)
-abstractLinksapj <- getWebPageDataJournal(astApj,200)
+abstractLinksmnras <- getWebPageDataJournal(mnras,500,'mnrasAbstracts.R')
+abstractLinksaa <- getWebPageDataJournal(astast,500,'astronomyAstrophysicsAbstracts.R')
+abstractLinksapj <- getWebPageDataJournal(astApj,500,'astrophysicalJournal.R')
 
 
-journal<-astApj
-b<-getURL(abstractLinksapj[2],ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE))
+
 source('./functions.R')
 
-authors<-getData2(journal,journal@authorSearch,b,
-                  journal@metaNodes,journal@metaNames,journal@metaContent) #get the authors
 
 mnrasData2<- parseAbstracts(mnras,abstractLinksmnras,5)
 mnrasData<- parseAbstracts(mnras,abstractLinksmnras[1:1270],length(abstractLinksmnras[1:1270]))
@@ -120,39 +117,73 @@ ddEdges <- data.frame(V1= character(0), V2= character(0))
 ddEdges<-edges(mnrasData,"author")
 
 
-nAffiliations<-length(unique((mnrasData2$affiliation1)))
-affiliationsSorted<- sort(unique(mnrasData2$affiliation1))
-a=NULL
-for(i in 1:length(affiliationsSorted)){
-  dist.name<-adist(affiliationsSorted[i],affiliationsSorted, partial = TRUE, ignore.case = TRUE)
-  a=rbind(a,dist.name)
-}
+
 
 #sort the affiliations nicely so it combines affiliations that are close in name
 mnrasData2<-sortAffiliations(mnrasData2)
 
-x = data.frame(num = 1:26, let = letters, LET = LETTERS)
-set.seed(10)
-tt<-split(x, sample(rep(1:2, 13)))
 
-  ddEdges<-edges(mnrasData1,"affiliation1")
-  affiliations<-mnrasData1$affiliation1[V(g)]
 
+  ddEdges<-edges(apjData,"affiliation1")
+  affiliations<-apjData$affiliation1[V(g)]
+
+  load('ddEdgesMNRAS.rdata')
+  ddEdges<-ddEdgesMNRAS
   g <- graph.data.frame(ddEdges, directed=FALSE)
-  a<-as.numeric(degree(g))
-  which(a<2)
+  net <- simplify(g, remove.multiple = F, remove.loops = T)
+  comps <- decompose.graph(net, min.vertices=5)
+  a<-as.numeric(degree(net))
+  removeG<-which(a<2)
+  net<-delete.vertices(net,removeG)
+  plot.igraph(comps[[1]], layout=layout.fruchterman.reingold(net),vertex.label=NA,vertex.size=1)
+  
+  plot.igraph(net, layout=layout.fruchterman.reingold(net),vertex.label=NA,vertex.size=1)
+  
+  plot.igraph(net, layout=layout.fruchterman.reingold(net),vertex.label=NA,vertex.size=1)
+  clusters(net)$csize
+  gg<-components(net)
+  aa<-groups(gg)  
+  comps <- decompose.graph(net, min.vertices=5)
+  net<-components(comps[[1]])
+  
+  
   
   V(g)$label <- V(g)$name
   opar <- par()$mar; par(mar=rep(0, 4)) #Give the graph lots of room
   set.seed(3952)
   plot.igraph(g, layout=layout.fruchterman.reingold(g),vertex.label=NA,vertex.size=1)
+  
+  
+  
   layout <- layout.reingold.tilford(g, circular=T)
-  net <- simplify(g2, remove.multiple = F, remove.loops = T)
+  
+  g <- barabasi.game(200, power=1)
+  
+  
+
   plot.igraph(g, vertex.label=NA,vertex.size=1,layout=layout)
   plot.igraph(net, vertex.label=NA,vertex.size=1)
-  d3g2<-as.data.frame(get.edgelist(g2))
-  simpleNetwork(Data = d3g2,  height = 1000, width = 1000,  charge = -50)
+  d3g2<-as.data.frame(get.edgelist(g))
+  simpleNetwork(Data = d3g2,  height = 1000, width = 1000,  charge = -50)%>%saveNetwork(file = 'Net1.html')
   
+  
+  g <- barabasi.game(200, power=1)
+  generate3Dplot(g,"test.mol2")
+  
+  layout <- layout.fruchterman.reingold(g)
+  plot(g, layout=layout, vertex.size=2,
+       vertex.label=NA, edge.arrow.size=.2)  
   
   par(mar=opar)
+  
+  nAffiliations<-length(unique((mnrasData2$affiliation1)))
+  affiliationsSorted<- sort(unique(mnrasData2$affiliation1))
+  a=NULL
+  for(i in 1:length(affiliationsSorted)){
+    dist.name<-adist(affiliationsSorted[i],affiliationsSorted, partial = TRUE, ignore.case = TRUE)
+    a=rbind(a,dist.name)
+  }
+  
+  
+ 
   

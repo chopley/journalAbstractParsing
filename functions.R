@@ -308,3 +308,57 @@ edges <-function(data,field){
   return(ddEdges)
 }
 
+generate3Dplot<- function(g,filename){
+  
+  g <- simplify(g, remove.multiple = F, remove.loops = T)
+  # Calculate degree for all nodes
+  degAll <- degree(g, v = V(g), mode = "all")
+  coord3D <- layout.fruchterman.reingold(g, dim = 3) 
+  nType <- 1
+  
+  write.table("@<TRIPOS>MOLECULE", file = filename, row.names = FALSE, col.names = FALSE, quote = FALSE)
+  write.table("Network Plot", file = filename, row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  write.table(data.frame(vcount(g), ecount(g), nType), file = filename, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  write.table("SMALL", file = filename, row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  write.table("NO_CHARGES\n", file = filename, row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  write.table("@<TRIPOS>ATOM", file = filename, row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  
+  isType <- 1
+  for (i in 1:vcount(g))
+  {
+    if (degAll[i] == 1)
+      isIn <- "He"
+    
+    if (degAll[i] == 2)
+      isIn <- "Na"
+    
+    if ((degAll[i] > 2) & (degAll[i] <= 5))
+      isIn <- "O"
+    
+    if ((degAll[i] > 5) & (degAll[i] <= 10))
+      isIn <- "Au"
+    
+    if ((degAll[i] > 10) & (degAll[i] <= 15))
+      isIn <- "P"
+    
+    if (degAll[i] > 15)
+      isIn <- "Cl"
+    
+    hlpL <- data.frame(i, V(g)[i]$name, coord3D[i, 1], coord3D[i, 2], coord3D[i, 3], isIn, isType, 0.0 )
+    
+    write.table(hlpL, file = filename, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  }
+  
+  write.table("@<TRIPOS>BOND", file = filename, row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  isType <- 1
+  
+  for (i in 1:ecount(g))
+  {
+    hlpL <- data.frame(i, get.edge(g,i)[1], get.edge(g,i)[2], isType)
+    
+    write.table(hlpL, file = filename, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE, append = TRUE)
+  }
+  
+  
+}
+
