@@ -4,11 +4,19 @@
 
 install.packages("networkD3")
 install.packages("extrafont")
+install.packages("RCurl")
+install.packages("caTools")
+install.packages("stringdist")
+install.packages("rgl")
+install.packages("rvest")
+install.packages("pipeR")
+install.packages("dplyr")
+install.packages("XML")
+
 
 require(rvest)
+require(XML)
 require(ggplot2)
-
-
 require(pipeR) # %>>% will be faster than %>%
 require(httr)
 require(RCurl)
@@ -20,7 +28,7 @@ library('rgl')
 require(doParallel)
 require(foreach)
 require(networkD3)
-
+require(plotly)
 library(magrittr)
 library(extrafont)
 font_import()
@@ -95,94 +103,42 @@ astApj <- new("Journal", base = "http://iopscience.iop.org/", extension = '0004-
 # MNRAS 325 11 August 2001
 # MNRAS 400 is ~2004
 
-abstractLinksmnras <- getWebPageDataJournal(mnras,500,'mnrasAbstracts.R')
-abstractLinksaa <- getWebPageDataJournal(astast,500,'astronomyAstrophysicsAbstracts.R')
-abstractLinksapj <- getWebPageDataJournal(astApj,500,'astrophysicalJournal.R')
+# extract the html links for the abstracts of 
+#MNRAS,
+abstractLinksmnras <- getWebPageDataJournal(mnras,500)
+#Astrononmy and Astrophysics, 
+abstractLinksaa <- getWebPageDataJournal(astast,500)
+#and Atrophysical Journal
+abstractLinksapj <- getWebPageDataJournal(astApj,500)
 
 
-
-source('./functions.R')
-
-
-mnrasData2<- parseAbstracts(mnras,abstractLinksmnras,5)
-mnrasData<- parseAbstracts(mnras,abstractLinksmnras[1:1270],length(abstractLinksmnras[1:1270]))
+#Parse the abstracts to produce a dataframe containing
+#[1] "author"       "affiliation1" "affiliation2" "affiliation3" "affiliation4" "affiliation5"
+#[7] "doi"          "authorEmail"  "abstractURL"  "date"         "webpage"      "email"  
+mnrasData<- parseAbstracts(mnras,abstractLinksmnras,5)
+#mnrasData<- parseAbstracts(mnras,abstractLinksmnras[1:1270],length(abstractLinksmnras[1:1270]))
 
 aaData<- parseAbstracts(astast,abstractLinksaa,380)
 apjData<- parseAbstracts(astApj,abstractLinksapj,3)
+#apj needs a different routine for handling the data
 apjData<- parseAbstracts2(astApj,abstractLinksapj,6)
 
 #glob2rx("/aa/abs/*aa*.html")
-ddEdges <- data.frame(V1= character(0), V2= character(0))
-
-ddEdges<-edges(mnrasData,"author")
-
-
-
+#ddEdges <- data.frame(V1= character(0), V2= character(0))
 
 #sort the affiliations nicely so it combines affiliations that are close in name
-mnrasData2<-sortAffiliations(mnrasData2)
+mnrasData<-sortAffiliations(mnrasData)
+#extract the graph edges from the dataframe
+ddEdgesMNRASAuthor<-edges(mnrasData,"author")
+ddEdgesAffiliation1<-edges(mnrasData,"affiliation1")
+
+#This is from saved date
+load('ddEdgesMNRAS.rdata')
+write.csv(ddEdgesMNRAS,"MNRAS_edges.csv")
 
 
 
-  ddEdges<-edges(apjData,"affiliation1")
-  affiliations<-apjData$affiliation1[V(g)]
-
-  load('ddEdgesMNRAS.rdata')
-  ddEdges<-ddEdgesMNRAS
-  g <- graph.data.frame(ddEdges, directed=FALSE)
-  net <- simplify(g, remove.multiple = F, remove.loops = T)
-  comps <- decompose.graph(net, min.vertices=5)
-  a<-as.numeric(degree(net))
-  removeG<-which(a<2)
-  net<-delete.vertices(net,removeG)
-  plot.igraph(comps[[1]], layout=layout.fruchterman.reingold(net),vertex.label=NA,vertex.size=1)
-  
-  plot.igraph(net, layout=layout.fruchterman.reingold(net),vertex.label=NA,vertex.size=1)
-  
-  plot.igraph(net, layout=layout.fruchterman.reingold(net),vertex.label=NA,vertex.size=1)
-  clusters(net)$csize
-  gg<-components(net)
-  aa<-groups(gg)  
-  comps <- decompose.graph(net, min.vertices=5)
-  net<-components(comps[[1]])
-  
-  
-  
-  V(g)$label <- V(g)$name
-  opar <- par()$mar; par(mar=rep(0, 4)) #Give the graph lots of room
-  set.seed(3952)
-  plot.igraph(g, layout=layout.fruchterman.reingold(g),vertex.label=NA,vertex.size=1)
-  
-  
-  
-  layout <- layout.reingold.tilford(g, circular=T)
-  
-  g <- barabasi.game(200, power=1)
-  
-  
-
-  plot.igraph(g, vertex.label=NA,vertex.size=1,layout=layout)
-  plot.igraph(net, vertex.label=NA,vertex.size=1)
-  d3g2<-as.data.frame(get.edgelist(g))
-  simpleNetwork(Data = d3g2,  height = 1000, width = 1000,  charge = -50)%>%saveNetwork(file = 'Net1.html')
-  
-  
-  g <- barabasi.game(200, power=1)
-  generate3Dplot(g,"test.mol2")
-  
-  layout <- layout.fruchterman.reingold(g)
-  plot(g, layout=layout, vertex.size=2,
-       vertex.label=NA, edge.arrow.size=.2)  
-  
-  par(mar=opar)
-  
-  nAffiliations<-length(unique((mnrasData2$affiliation1)))
-  affiliationsSorted<- sort(unique(mnrasData2$affiliation1))
-  a=NULL
-  for(i in 1:length(affiliationsSorted)){
-    dist.name<-adist(affiliationsSorted[i],affiliationsSorted, partial = TRUE, ignore.case = TRUE)
-    a=rbind(a,dist.name)
-  }
+affiliations<-apjData$affiliation1[V(g)]
   
   
  

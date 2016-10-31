@@ -33,7 +33,7 @@ sortAffiliations <-function(data){
 getWebPageDataJournal <- function(journal,nArticles){
   #function that will get abstracts from a journal.
   #Set the timeout nice and long because sometimes they take a LONG time
-  defaultOptions<- curlOptions(timeout = 60,httpauth = 1L) #need to name the useragent for certain websites
+  defaultOptions<- curlOptions(timeout = 100,httpauth = 1L) #need to name the useragent for certain websites
   #See http://www.omegahat.org/RCurl/FAQ.html
   options(RCurlOptions = defaultOptions) 
   
@@ -43,8 +43,8 @@ getWebPageDataJournal <- function(journal,nArticles){
     print(paste("Accessing URL",i))
     b<-getURL(nextWebPage,ssl.verifypeer = FALSE, useragent = "R",.opts=curlOptions(followlocation = TRUE)) #Use this because it allows for a longer timeout by directly using RCurl 
     #Need the useragent and ssl.verifypeer for certain websites it seems
-    hrefLinks<- read_html(b)%>>% html_nodes("a") %>>% html_attr("href")
-    nextIssue<-read_html(b)%>>% html_nodes("a")
+    hrefLinks<- read_html(b) %>>% html_nodes("a") %>>% html_attr("href")
+    nextIssue<-read_html(b) %>>% html_nodes("a")
     nextIssueURL<-getNextIssue(journal,nextIssue)
     
     #We get the lines that have the abstract html links
@@ -241,7 +241,7 @@ parseAbstracts <-function(journal,abstracts,nAbstracts){
 }
 
 parseAbstracts2 <-function(journal,abstracts,nAbstracts){
-  #this is a slight variation on pageAbstract and is written to support the Astorphysics Journal data format.
+  #this is a slight variation on parseAbstract and is written to support the Astorphysics Journal data format.
   #Still a work in progress.
   #largely works with the following Journals
   #1. Astrophysics Journal- Probably with other IOP publications?
