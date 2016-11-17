@@ -132,6 +132,7 @@ mnrasData<-sortAffiliations(mnrasData)
 ddEdgesMNRASAuthor<-edges(mnrasData,"author")
 ddEdgesAffiliation1<-edges(mnrasData,"affiliation1")
 
+#MNRAS March 21, 2000 -> 
 #This is from saved date
 load('ddEdgesMNRAS.rdata')
 write.csv(ddEdgesMNRAS,"MNRAS_edges.csv")
