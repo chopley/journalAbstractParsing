@@ -1,0 +1,11 @@
+2016-10-29 10:42:15.813+0000 INFO  [o.n.u.i.b.ParallelBatchImporter] Import starting
+2016-10-29 10:42:16.283+0000 WARN  [o.n.k.i.s.MetaDataStore] Missing counts store, rebuilding it.
+2016-10-29 10:42:16.683+0000 INFO  [o.n.k.a.i.l.LuceneLabelScanStore] No lucene scan store index found, this might just be first use. Preparing to rebuild.
+2016-10-29 10:42:16.852+0000 INFO  [o.n.k.a.i.l.LuceneLabelScanStore] Rebuilding lucene scan store, this may take a while
+2016-10-29 10:42:16.862+0000 INFO  [o.n.k.a.i.l.LuceneLabelScanStore] Lucene scan store rebuilt (roughly 0 nodes)
+2016-10-29 10:42:20.010+0000 INFO  [o.n.u.i.b.ParallelBatchImporter] Import completed, took 4s 195ms. Imported:
+  2329 nodes
+  57135 relationships
+  135230 properties
+2016-10-29 10:42:20.014+0000 INFO  [o.n.k.i.s.c.CountsTracker] About to rotate counts store at transaction 1 to [./graph/neostore.counts.db.b], from [./graph/neostore.counts.db.a].
+2016-10-29 10:42:20.015+0000 INFO  [o.n.k.i.s.c.CountsTracker] Successfully rotated counts store at transaction 1 to [./graph/neostore.counts.db.b], from [./graph/neostore.counts.db.a].

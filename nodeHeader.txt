@@ -1,0 +1,1 @@
+label_prop,label_count,UserId:ID,degree,out_degree,in_degree,triangle_count,clustering,pagerank
